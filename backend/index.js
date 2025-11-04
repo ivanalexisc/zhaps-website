@@ -21,11 +21,11 @@ app.use(bodyParser.json());
 
 const authRoutes = require('./routes/auth');
 const bonusHuntRoutes = require('./routes/bonusHunts');
-const bonosRoutes = require('./routes/bonos');
+const bonusesRoutes = require('./routes/bonuses');
 
 app.use('/auth', authRoutes);
 app.use('/bonus-hunts', bonusHuntRoutes);
-app.use('/bonus-hunts/:id/bonos', bonosRoutes);
+app.use('/bonus-hunts/:id/bonuses', bonusesRoutes);
 
 app.get('/', (req, res) => res.json({ ok: true, message: 'Zhaps backend running' }));
 

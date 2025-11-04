@@ -3,8 +3,9 @@ const { v4: uuidv4 } = require('uuid');
 
 async function list(req, res) {
   try {
+    const where = req.user ? { userId: req.user.id } : {}; // Filter by user if authenticated
     const hunts = await BonusHunt.findAll({ 
-      where: { userId: req.user.id }, 
+      where,
       order: [['createdAt', 'DESC']],
       include: [{ model: Bonus, as: 'bonuses' }]
     });
@@ -18,8 +19,11 @@ async function list(req, res) {
 async function getOne(req, res) {
   try {
     const id = req.params.id;
+    const where = { id };
+    if (req.user) where.userId = req.user.id; // Only filter by user if authenticated
+    
     const hunt = await BonusHunt.findOne({ 
-      where: { id, userId: req.user.id }, 
+      where,
       include: [{ model: Bonus, as: 'bonuses' }] 
     });
     if (!hunt) return res.status(404).json({ message: 'Bonus hunt not found' });

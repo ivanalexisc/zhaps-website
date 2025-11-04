@@ -4,12 +4,13 @@ const authenticateToken = require('../middlewares/authenticateToken');
 const { requireFields } = require('../middlewares/validate');
 const controller = require('../controllers/bonusHuntController');
 
-router.use(authenticateToken);
-
+// Public routes (no auth required)
 router.get('/', controller.list);
 router.get('/:id', controller.getOne);
-router.post('/', requireFields(['startBalance']), controller.create);
-router.put('/:id', controller.update);
-router.delete('/:id', controller.remove);
+
+// Protected routes (auth required)
+router.post('/', authenticateToken, requireFields(['startBalance']), controller.create);
+router.put('/:id', authenticateToken, controller.update);
+router.delete('/:id', authenticateToken, controller.remove);
 
 module.exports = router;

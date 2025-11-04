@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Trophy, Plus, ArrowLeft, DollarSign, Target, Package, TrendingUp, Lock } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -8,53 +8,14 @@ import { Button } from "@/components/ui/button"
 import { AddBonusModal } from "@/components/add-bonus-modal"
 import { CreateHuntModal } from "@/components/create-hunt-modal"
 import { EditBonusModal } from "@/components/edit-bonus-modal"
-
-type BonusStatus = "Pending" | "Opened" | "Completed"
-
-interface Bonus {
-  id: number
-  slotName: string
-  bet: number
-  multiplier: number
-  win: number
-  status: BonusStatus
-}
-
-interface BonusHunt {
-  id: string
-  date: string
-  startBalance: number
-  bonuses: Bonus[]
-  isFinished?: boolean
-}
-
-const initialHunts: BonusHunt[] = [
-  {
-    id: "hunt-1",
-    date: "10/27/2025",
-    startBalance: 1000000,
-    isFinished: false,
-    bonuses: [
-      { id: 1, slotName: "Gates of Olympus", bet: 50, multiplier: 65, win: 3250, status: "Completed" },
-      { id: 2, slotName: "Sweet Bonanza", bet: 40, multiplier: 45, win: 1800, status: "Completed" },
-      { id: 3, slotName: "Sugar Rush", bet: 60, multiplier: 32, win: 1920, status: "Completed" },
-    ],
-  },
-  {
-    id: "hunt-2",
-    date: "10/25/2025",
-    startBalance: 1100000,
-    isFinished: false,
-    bonuses: [
-      { id: 1, slotName: "Starlight Princess", bet: 45, multiplier: 150, win: 6750, status: "Completed" },
-      { id: 2, slotName: "Dog House", bet: 35, multiplier: 89, win: 3115, status: "Completed" },
-      { id: 3, slotName: "Fruit Party", bet: 50, multiplier: 120, win: 6000, status: "Completed" },
-    ],
-  },
-]
+import { Bonus, BonusHunt } from "@/types"
+import { listBonusHunts, createBonusHunt, updateBonusHunt, createBonus, updateBonus } from "@/services/api"
+import { useAuth } from "@/contexts/auth-context"
+import { toast } from "@/components/ui/use-toast"
 
 export function BonusHuntManager() {
-  const [hunts, setHunts] = useState<BonusHunt[]>(initialHunts)
+  const [hunts, setHunts] = useState<BonusHunt[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedHunt, setSelectedHunt] = useState<string | null>(null)
   const [isAddBonusModalOpen, setIsAddBonusModalOpen] = useState(false)
   const [isCreateHuntModalOpen, setIsCreateHuntModalOpen] = useState(false)
@@ -63,14 +24,33 @@ export function BonusHuntManager() {
   const [sortColumn, setSortColumn] = useState<keyof Bonus | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
+  useEffect(() => {
+    loadBonusHunts()
+  }, [])
+
+  const loadBonusHunts = async () => {
+    setLoading(true)
+    try {
+      const data = await listBonusHunts()
+      setHunts(data)
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to load bonus hunts", variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const currentHunt = hunts.find((h) => h.id === selectedHunt)
+  const { isAuthenticated } = useAuth()
 
   const getHuntStats = (hunt: BonusHunt) => {
-    const totalWagered = hunt.bonuses.reduce((sum, bonus) => sum + bonus.bet, 0)
-    const totalWin = hunt.bonuses.reduce((sum, bonus) => sum + bonus.win, 0)
-    const biggestWin = hunt.bonuses.length > 0 ? Math.max(...hunt.bonuses.map((b) => b.win)) : 0
-    const highestMultiplier = hunt.bonuses.length > 0 ? Math.max(...hunt.bonuses.map((b) => b.multiplier)) : 0
-    const payout = hunt.startBalance - totalWagered + totalWin
+    const bonuses = hunt.bonuses || []
+    const totalWagered = bonuses.reduce((sum, bonus) => sum + (Number(bonus?.bet) || 0), 0)
+    const totalWin = bonuses.reduce((sum, bonus) => sum + (Number(bonus?.win) || 0), 0)
+    const biggestWin = bonuses.length > 0 ? Math.max(...bonuses.map((b) => Number(b.win) || 0)) : 0
+    const highestMultiplier = bonuses.length > 0 ? Math.max(...bonuses.map((b) => Number(b.multiplier) || 0)) : 0
+  // payout should represent the total amount paid by bonuses (sum of wins)
+  const payout = totalWin
 
     return {
       totalWagered,
@@ -78,7 +58,7 @@ export function BonusHuntManager() {
       biggestWin,
       highestMultiplier,
       payout,
-      bonusCount: hunt.bonuses.length,
+      bonusCount: bonuses.length,
     }
   }
 
@@ -91,10 +71,11 @@ export function BonusHuntManager() {
     }
   }
 
-  const getSortedBonuses = (bonuses: Bonus[]) => {
-    if (!sortColumn) return bonuses
+  const getSortedBonuses = (bonuses?: Bonus[]) => {
+    const list = bonuses || []
+    if (!sortColumn) return list
 
-    return [...bonuses].sort((a, b) => {
+    return [...list].sort((a, b) => {
       const aValue = a[sortColumn]
       const bValue = b[sortColumn]
 
@@ -104,73 +85,73 @@ export function BonusHuntManager() {
     })
   }
 
-  const handleAddBonus = (newBonus: Omit<Bonus, "id">) => {
+  const handleAddBonus = async (newBonus: Omit<Bonus, "id" | "bonusHuntId">) => {
     if (!selectedHunt) return
 
-    setHunts((prevHunts) =>
-      prevHunts.map((hunt) => {
-        if (hunt.id === selectedHunt) {
-          const maxId = hunt.bonuses.length > 0 ? Math.max(...hunt.bonuses.map((b) => b.id)) : 0
-          return {
-            ...hunt,
-            bonuses: [...hunt.bonuses, { ...newBonus, id: maxId + 1 }],
-          }
-        }
-        return hunt
-      }),
-    )
+    try {
+  const bonus = await createBonus(selectedHunt, { ...newBonus, bonusHuntId: selectedHunt })
+  setHunts(prev => prev.map(h => h.id === selectedHunt ? { ...h, bonuses: [...(h.bonuses || []), bonus] } : h))
+      toast({ title: "Success", description: "Bonus added" })
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to add bonus", variant: "destructive" })
+    }
   }
 
-  const handleEditBonus = (updatedBonus: Bonus) => {
+  const handleEditBonus = async (updatedBonus: Bonus) => {
     if (!selectedHunt) return
 
-    setHunts((prevHunts) =>
-      prevHunts.map((hunt) => {
-        if (hunt.id === selectedHunt) {
-          return {
-            ...hunt,
-            bonuses: hunt.bonuses.map((bonus) => (bonus.id === updatedBonus.id ? updatedBonus : bonus)),
-          }
-        }
-        return hunt
-      }),
-    )
+    try {
+  const bonus = await updateBonus(selectedHunt, updatedBonus.id, updatedBonus)
+  setHunts(prev => prev.map(h => h.id === selectedHunt ? { ...h, bonuses: (h.bonuses || []).map(b => b.id === bonus.id ? bonus : b) } : h))
+      toast({ title: "Success", description: "Bonus updated" })
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to update bonus", variant: "destructive" })
+    }
   }
 
   const handleBonusClick = (bonus: Bonus) => {
+    if (!isAuthenticated) {
+      toast({ title: "Login required", description: "Please login to edit bonuses", variant: "default" })
+      return
+    }
+
     if (currentHunt?.isFinished) return
     setEditingBonus(bonus)
     setIsEditBonusModalOpen(true)
   }
 
-  const handleFinishHunt = () => {
+  const handleFinishHunt = async () => {
     if (!selectedHunt) return
 
-    setHunts((prevHunts) =>
-      prevHunts.map((hunt) => {
-        if (hunt.id === selectedHunt) {
-          return {
-            ...hunt,
-            isFinished: true,
-          }
-        }
-        return hunt
-      }),
-    )
-  }
-
-  const handleCreateHunt = (startBalance: number) => {
-    const newHunt: BonusHunt = {
-      id: `hunt-${Date.now()}`,
-      date: new Date().toLocaleDateString("en-US"),
-      startBalance,
-      bonuses: [],
-      isFinished: false,
+    try {
+      const updated = await updateBonusHunt(selectedHunt, { isFinished: true })
+      setHunts(prev => prev.map(h => h.id === selectedHunt ? updated : h))
+      toast({ title: "Success", description: "Hunt finished" })
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to finish hunt", variant: "destructive" })
     }
-    setHunts([newHunt, ...hunts])
   }
 
-  const getStatusColor = (status: BonusStatus) => {
+  const handleCreateHunt = async (startBalance: number) => {
+    try {
+      const newHunt = await createBonusHunt(startBalance)
+      // normalize response: ensure bonuses array and default fields exist
+      const normalized: BonusHunt = {
+        id: newHunt.id,
+        date: newHunt.date || new Date().toLocaleDateString("en-US"),
+        startBalance: newHunt.startBalance ?? startBalance,
+        bonuses: newHunt.bonuses || [],
+        isFinished: newHunt.isFinished ?? false,
+        userId: newHunt.userId ?? 0,
+      }
+      setHunts(prev => [normalized, ...prev])
+      toast({ title: "Success", description: "Bonus hunt created" })
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to create bonus hunt", variant: "destructive" })
+    }
+  }
+
+  const getStatusColor = (status: Bonus["status"]) => {
     switch (status) {
       case "Pending":
         return "bg-yellow-500 text-black"
@@ -192,14 +173,15 @@ export function BonusHuntManager() {
               BONUS HUNT MANAGER
             </h1>
           </div>
-
-          <Button
-            onClick={() => setIsCreateHuntModalOpen(true)}
-            className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-black font-bold mt-4"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create New Hunt
-          </Button>
+          {isAuthenticated && (
+            <Button
+              onClick={() => setIsCreateHuntModalOpen(true)}
+              className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-black font-bold mt-4"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Hunt
+            </Button>
+          )}
         </div>
 
         {/* Hunts Table */}
@@ -303,7 +285,7 @@ export function BonusHuntManager() {
           </div>
 
           <div className="flex gap-2">
-            {!currentHunt?.isFinished && (
+            {!currentHunt?.isFinished && isAuthenticated && (
               <>
                 <Button
                   onClick={handleFinishHunt}
@@ -348,7 +330,7 @@ export function BonusHuntManager() {
               </div>
               <div>
                 <p className="text-gray-400 text-sm">Total Win</p>
-                <p className="text-2xl font-bold text-white">${stats.totalWin.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-white">${stats.totalWin.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               </div>
             </div>
           </Card>
@@ -423,13 +405,16 @@ export function BonusHuntManager() {
                 </th>
               </tr>
             </thead>
-            <tbody>
+              <tbody>
               {sortedBonuses.map((bonus) => (
                 <tr
                   key={bonus.id}
-                  onClick={() => handleBonusClick(bonus)}
+                  onClick={() => {
+                    if (!isAuthenticated) return
+                    handleBonusClick(bonus)
+                  }}
                   className={`border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors ${
-                    !currentHunt?.isFinished ? "cursor-pointer" : "cursor-not-allowed opacity-70"
+                    !currentHunt?.isFinished && isAuthenticated ? "cursor-pointer" : "cursor-not-allowed opacity-70"
                   }`}
                 >
                   <td className="p-4">
@@ -468,13 +453,15 @@ export function BonusHuntManager() {
         </div>
       </Card>
 
-      <AddBonusModal
-        isOpen={isAddBonusModalOpen}
-        onClose={() => setIsAddBonusModalOpen(false)}
-        onAdd={handleAddBonus}
-      />
+      {isAuthenticated && (
+        <AddBonusModal
+          isOpen={isAddBonusModalOpen}
+          onClose={() => setIsAddBonusModalOpen(false)}
+          onAdd={handleAddBonus}
+        />
+      )}
 
-      {editingBonus && (
+      {editingBonus && isAuthenticated && (
         <EditBonusModal
           isOpen={isEditBonusModalOpen}
           onClose={() => {

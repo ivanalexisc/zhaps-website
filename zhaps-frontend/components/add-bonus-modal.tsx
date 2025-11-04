@@ -12,13 +12,7 @@ type BonusStatus = "Pending" | "Opened" | "Completed"
 interface AddBonusModalProps {
   isOpen: boolean
   onClose: () => void
-  onAdd: (bonus: {
-    slotName: string
-    bet: number
-    multiplier: number
-    win: number
-    status: BonusStatus
-  }) => void
+  onAdd: (bonus: { slotName: string; bet: number; multiplier: number; win: number; status: BonusStatus }) => Promise<void>
 }
 
 export function AddBonusModal({ isOpen, onClose, onAdd }: AddBonusModalProps) {
@@ -27,27 +21,35 @@ export function AddBonusModal({ isOpen, onClose, onAdd }: AddBonusModalProps) {
   const [multiplier, setMultiplier] = useState("")
   const [win, setWin] = useState("")
   const [status, setStatus] = useState<BonusStatus>("Pending")
+  const [isLoading, setIsLoading] = useState(false)
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
 
-    onAdd({
-      slotName,
-      bet: Number.parseFloat(bet) || 0,
-      multiplier: Number.parseFloat(multiplier) || 0,
-      win: Number.parseFloat(win) || 0,
-      status,
-    })
+    try {
+      await onAdd({
+        slotName,
+        bet: Number.parseFloat(bet) || 0,
+        multiplier: Number.parseFloat(multiplier) || 0,
+        win: Number.parseFloat(win) || 0,
+        status,
+      })
 
-    // Reset form
-    setSlotName("")
-    setBet("")
-    setMultiplier("")
-    setWin("")
-    setStatus("Pending")
-    onClose()
+      // Reset form
+      setSlotName("")
+      setBet("")
+      setMultiplier("")
+      setWin("")
+      setStatus("Pending")
+      onClose()
+    } catch (err) {
+      console.error('Failed to add bonus', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -68,13 +70,14 @@ export function AddBonusModal({ isOpen, onClose, onAdd }: AddBonusModalProps) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-gray-300 text-sm font-semibold mb-2">Slot Name</label>
-              <input
+                <input
                 type="text"
                 value={slotName}
                 onChange={(e) => setSlotName(e.target.value)}
                 className="w-full bg-black/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 transition-colors"
                 placeholder="e.g., Gates of Olympus"
                 required
+                  disabled={isLoading}
               />
             </div>
 
@@ -88,6 +91,7 @@ export function AddBonusModal({ isOpen, onClose, onAdd }: AddBonusModalProps) {
                 className="w-full bg-black/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 transition-colors"
                 placeholder="50.00"
                 required
+                disabled={isLoading}
               />
             </div>
 
@@ -100,6 +104,7 @@ export function AddBonusModal({ isOpen, onClose, onAdd }: AddBonusModalProps) {
                 onChange={(e) => setMultiplier(e.target.value)}
                 className="w-full bg-black/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 transition-colors"
                 placeholder="0 (if not opened yet)"
+                disabled={isLoading}
               />
             </div>
 
@@ -112,6 +117,7 @@ export function AddBonusModal({ isOpen, onClose, onAdd }: AddBonusModalProps) {
                 onChange={(e) => setWin(e.target.value)}
                 className="w-full bg-black/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 transition-colors"
                 placeholder="0 (if not opened yet)"
+                disabled={isLoading}
               />
             </div>
 
@@ -121,6 +127,7 @@ export function AddBonusModal({ isOpen, onClose, onAdd }: AddBonusModalProps) {
                 value={status}
                 onChange={(e) => setStatus(e.target.value as BonusStatus)}
                 className="w-full bg-black/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-yellow-500 transition-colors"
+                disabled={isLoading}
               >
                 <option value="Pending">Pending</option>
                 <option value="Opened">Opened</option>
@@ -135,14 +142,16 @@ export function AddBonusModal({ isOpen, onClose, onAdd }: AddBonusModalProps) {
                 onClick={onClose}
                 variant="outline"
                 className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
+                disabled={isLoading}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 className="flex-1 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
+                disabled={isLoading}
               >
-                Add Bonus
+                {isLoading ? 'Adding...' : 'Add Bonus'}
               </Button>
             </div>
           </form>

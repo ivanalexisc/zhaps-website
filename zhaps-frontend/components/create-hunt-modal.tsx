@@ -10,21 +10,28 @@ import { Card } from "@/components/ui/card"
 interface CreateHuntModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreate: (startBalance: number) => void
+  onCreate: (startBalance: number) => Promise<void>
 }
 
 export function CreateHuntModal({ isOpen, onClose, onCreate }: CreateHuntModalProps) {
   const [startBalance, setStartBalance] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
 
-    onCreate(Number.parseFloat(startBalance) || 0)
-
-    setStartBalance("")
-    onClose()
+    try {
+      await onCreate(Number.parseFloat(startBalance) || 0)
+      setStartBalance("")
+      onClose()
+    } catch (err) {
+      console.error('Failed to create hunt', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

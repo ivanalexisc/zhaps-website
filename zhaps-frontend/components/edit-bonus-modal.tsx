@@ -3,47 +3,39 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import { Bonus } from "@/types"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-type BonusStatus = "Pending"  | "Completed"
-
-interface Bonus {
-  id: number
-  slotName: string
-  bet: number
-  multiplier: number
-  win: number
-  status: BonusStatus
-}
-
 interface EditBonusModalProps {
   isOpen: boolean
   onClose: () => void
-  onEdit: (bonus: Bonus) => void
+  onEdit: (bonus: Bonus) => Promise<void>
   bonus: Bonus
 }
 
 export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModalProps) {
   const [slotName, setSlotName] = useState(bonus.slotName)
-  const [bet, setBet] = useState(bonus.bet.toString())
-  const [multiplier, setMultiplier] = useState(bonus.multiplier.toString())
-  const [win, setWin] = useState(bonus.win.toString())
-  const [status, setStatus] = useState<BonusStatus>(bonus.status)
+  const [bet, setBet] = useState(String(bonus.bet ?? ''))
+  const [multiplier, setMultiplier] = useState(String(bonus.multiplier ?? ''))
+  const [win, setWin] = useState(String(bonus.win ?? ''))
+  const [status, setStatus] = useState<Bonus["status"]>(bonus.status)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     setSlotName(bonus.slotName)
-    setBet(bonus.bet.toString())
-    setMultiplier(bonus.multiplier.toString())
-    setWin(bonus.win.toString())
+    setBet(String(bonus.bet ?? ''))
+    setMultiplier(String(bonus.multiplier ?? ''))
+    setWin(String(bonus.win ?? ''))
     setStatus(bonus.status)
   }, [bonus])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
 
     const updatedBonus: Bonus = {
       id: bonus.id,
@@ -52,10 +44,17 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
       multiplier: Number.parseFloat(multiplier) || 0,
       win: Number.parseFloat(win) || 0,
       status,
+      bonusHuntId: bonus.bonusHuntId,
     }
 
-    onEdit(updatedBonus)
-    onClose()
+    try {
+      await onEdit(updatedBonus)
+      onClose()
+    } catch (err) {
+      console.error('Failed to update bonus', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!isOpen) return null
@@ -145,6 +144,7 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
                       ? "bg-yellow-500 text-black hover:bg-yellow-600"
                       : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
+                  disabled={isLoading}
                 >
                   Pending
                 </Button>
@@ -157,6 +157,7 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
                       ? "bg-green-500 text-white hover:bg-green-600"
                       : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
+                  disabled={isLoading}
                 >
                   Completed
                 </Button>
@@ -169,14 +170,16 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
                 onClick={onClose}
                 variant="outline"
                 className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800 bg-transparent"
+                disabled={isLoading}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 className="flex-1 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-black font-bold"
+                disabled={isLoading}
               >
-                Save Changes
+                {isLoading ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </form>
