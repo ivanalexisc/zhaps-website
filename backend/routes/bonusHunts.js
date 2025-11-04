@@ -8,7 +8,7 @@ router.use(authenticateToken);
 
 router.get('/', controller.list);
 router.get('/:id', controller.getOne);
-router.post('/', requireFields(['nombre','monto_inicial']), controller.create);
+router.post('/', requireFields(['startBalance']), controller.create);
 router.put('/:id', controller.update);
 router.delete('/:id', controller.remove);
 

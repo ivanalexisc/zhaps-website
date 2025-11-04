@@ -5,37 +5,24 @@ class BonusHunt extends Model {
     BonusHunt.init(
       {
         id: {
-          type: DataTypes.INTEGER.UNSIGNED,
+          type: DataTypes.STRING,
           primaryKey: true,
-          autoIncrement: true,
         },
-        nombre: {
-          type: DataTypes.STRING(150),
-          allowNull: false,
-        },
-        fecha_inicio: {
+        date: {
           type: DataTypes.DATE,
           allowNull: false,
           defaultValue: DataTypes.NOW,
         },
-        fecha_fin: {
-          type: DataTypes.DATE,
-          allowNull: true,
-        },
-        monto_inicial: {
+        startBalance: {
           type: DataTypes.DECIMAL(12,2),
           allowNull: false,
         },
-        monto_final: {
-          type: DataTypes.DECIMAL(12,2),
-          allowNull: true,
-        },
-        estado: {
-          type: DataTypes.ENUM('activo','finalizado','cancelado'),
+        isFinished: {
+          type: DataTypes.BOOLEAN,
           allowNull: false,
-          defaultValue: 'activo',
+          defaultValue: false,
         },
-        usuario_id: {
+        userId: {
           type: DataTypes.INTEGER.UNSIGNED,
           allowNull: false,
         },

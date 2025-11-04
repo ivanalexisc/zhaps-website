@@ -13,7 +13,7 @@ async function register(req, res) {
   const { username, email, password } = req.body;
   try {
     const exists = await User.findOne({ where: { [Op.or]: [{ username }, { email }] } });
-    if (exists) return res.status(409).json({ message: 'Username o email ya en uso' });
+    if (exists) return res.status(409).json({ message: 'Username or email already in use' });
 
     const user = await User.create({ username, email, password });
     const payload = { id: user.id };
@@ -21,7 +21,7 @@ async function register(req, res) {
     return res.status(201).json({ user: { id: user.id, username: user.username, email: user.email }, token });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error registrando usuario', error: err.message });
+    return res.status(500).json({ message: 'Error registering user', error: err.message });
   }
 }
 
@@ -29,17 +29,17 @@ async function login(req, res) {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(401).json({ message: 'Credenciales inválidas' });
+    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
 
     const match = await user.comparePassword(password);
-    if (!match) return res.status(401).json({ message: 'Credenciales inválidas' });
+    if (!match) return res.status(401).json({ message: 'Invalid credentials' });
 
     const payload = { id: user.id };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
     return res.json({ user: { id: user.id, username: user.username, email: user.email }, token });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error en login', error: err.message });
+    return res.status(500).json({ message: 'Login error', error: err.message });
   }
 }
 
