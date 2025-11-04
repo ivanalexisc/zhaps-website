@@ -63,7 +63,14 @@ async function update(req, res) {
       if (allowed.includes(key)) hunt[key] = updates[key];
     }
     await hunt.save();
-    return res.json({ bonusHunt: hunt });
+
+    // Fetch the updated hunt with its bonuses
+    const updatedHunt = await BonusHunt.findOne({
+      where: { id },
+      include: [{ model: Bonus, as: 'bonuses' }]
+    });
+
+    return res.json({ bonusHunt: updatedHunt });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error actualizando bonus hunt', error: err.message });

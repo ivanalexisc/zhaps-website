@@ -49,8 +49,8 @@ export function BonusHuntManager() {
     const totalWin = bonuses.reduce((sum, bonus) => sum + (Number(bonus?.win) || 0), 0)
     const biggestWin = bonuses.length > 0 ? Math.max(...bonuses.map((b) => Number(b.win) || 0)) : 0
     const highestMultiplier = bonuses.length > 0 ? Math.max(...bonuses.map((b) => Number(b.multiplier) || 0)) : 0
-  // payout should represent the total amount paid by bonuses (sum of wins)
-  const payout = totalWin
+    // payout should represent the total amount paid by bonuses (sum of wins)
+    const payout = totalWin
 
     return {
       totalWagered,
@@ -89,8 +89,8 @@ export function BonusHuntManager() {
     if (!selectedHunt) return
 
     try {
-  const bonus = await createBonus(selectedHunt, { ...newBonus, bonusHuntId: selectedHunt })
-  setHunts(prev => prev.map(h => h.id === selectedHunt ? { ...h, bonuses: [...(h.bonuses || []), bonus] } : h))
+      const bonus = await createBonus(selectedHunt, { ...newBonus, bonusHuntId: selectedHunt })
+      setHunts(prev => prev.map(h => h.id === selectedHunt ? { ...h, bonuses: [...(h.bonuses || []), bonus] } : h))
       toast({ title: "Success", description: "Bonus added" })
     } catch (err) {
       toast({ title: "Error", description: "Failed to add bonus", variant: "destructive" })
@@ -101,8 +101,8 @@ export function BonusHuntManager() {
     if (!selectedHunt) return
 
     try {
-  const bonus = await updateBonus(selectedHunt, updatedBonus.id, updatedBonus)
-  setHunts(prev => prev.map(h => h.id === selectedHunt ? { ...h, bonuses: (h.bonuses || []).map(b => b.id === bonus.id ? bonus : b) } : h))
+      const bonus = await updateBonus(selectedHunt, updatedBonus.id, updatedBonus)
+      setHunts(prev => prev.map(h => h.id === selectedHunt ? { ...h, bonuses: (h.bonuses || []).map(b => b.id === bonus.id ? bonus : b) } : h))
       toast({ title: "Success", description: "Bonus updated" })
     } catch (err) {
       toast({ title: "Error", description: "Failed to update bonus", variant: "destructive" })
@@ -125,7 +125,12 @@ export function BonusHuntManager() {
 
     try {
       const updated = await updateBonusHunt(selectedHunt, { isFinished: true })
-      setHunts(prev => prev.map(h => h.id === selectedHunt ? updated : h))
+      // Ensure we preserve bonuses if they're missing from the response
+      const currentBonuses = hunts.find(h => h.id === selectedHunt)?.bonuses || [];
+      setHunts(prev => prev.map(h => h.id === selectedHunt ? {
+        ...updated,
+        bonuses: updated.bonuses || currentBonuses
+      } : h))
       toast({ title: "Success", description: "Hunt finished" })
     } catch (err) {
       toast({ title: "Error", description: "Failed to finish hunt", variant: "destructive" })
@@ -313,28 +318,15 @@ export function BonusHuntManager() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-black/60 backdrop-blur-sm border-gray-800 p-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm">Total Wagered</p>
-                <p className="text-2xl font-bold text-white">${stats.totalWagered.toLocaleString()}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="bg-black/60 backdrop-blur-sm border-gray-800 p-6">
-            <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-800 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
+                <Trophy className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-gray-400 text-sm">Total Win</p>
-                <p className="text-2xl font-bold text-white">${stats.totalWin.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                <p className="text-gray-400 text-sm">Highest Win</p>
+                <p className="text-2xl font-bold text-green-400">${stats.biggestWin.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               </div>
             </div>
           </Card>
-
           <Card className="bg-black/60 backdrop-blur-sm border-gray-800 p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-yellow-600 to-orange-600 rounded-lg flex items-center justify-center">
@@ -346,14 +338,24 @@ export function BonusHuntManager() {
               </div>
             </div>
           </Card>
-
+          <Card className="bg-black/60 backdrop-blur-sm border-gray-800 p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-800 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Total Win</p>
+                <p className="text-2xl font-bold text-white">${stats.totalWin.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+          </Card>
           <Card className="bg-black/60 backdrop-blur-sm border-gray-800 p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-800 rounded-lg flex items-center justify-center">
                 <Package className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-gray-400 text-sm">Bonuses</p>
+                <p className="text-gray-400 text-sm">Total Bonuses</p>
                 <p className="text-2xl font-bold text-white">{stats.bonusCount}</p>
               </div>
             </div>
@@ -405,7 +407,7 @@ export function BonusHuntManager() {
                 </th>
               </tr>
             </thead>
-              <tbody>
+            <tbody>
               {sortedBonuses.map((bonus) => (
                 <tr
                   key={bonus.id}
@@ -413,9 +415,8 @@ export function BonusHuntManager() {
                     if (!isAuthenticated) return
                     handleBonusClick(bonus)
                   }}
-                  className={`border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors ${
-                    !currentHunt?.isFinished && isAuthenticated ? "cursor-pointer" : "cursor-not-allowed opacity-70"
-                  }`}
+                  className={`border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors ${!currentHunt?.isFinished && isAuthenticated ? "cursor-pointer" : "cursor-not-allowed opacity-70"
+                    }`}
                 >
                   <td className="p-4">
                     <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-600 rounded text-black font-bold flex items-center justify-center text-sm">

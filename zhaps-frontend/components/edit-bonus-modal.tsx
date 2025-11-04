@@ -24,6 +24,7 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
   const [win, setWin] = useState(String(bonus.win ?? ''))
   const [status, setStatus] = useState<Bonus["status"]>(bonus.status)
   const [isLoading, setIsLoading] = useState(false)
+  const [lastEdited, setLastEdited] = useState<'multiplier' | 'win' | null>(null)
 
   useEffect(() => {
     setSlotName(bonus.slotName)
@@ -31,7 +32,27 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
     setMultiplier(String(bonus.multiplier ?? ''))
     setWin(String(bonus.win ?? ''))
     setStatus(bonus.status)
+    setLastEdited(null)
   }, [bonus])
+
+  // Auto-calculate win or multiplier when bet or the other value changes
+  useEffect(() => {
+    const betValue = parseFloat(bet)
+    const multiplierValue = parseFloat(multiplier)
+    const winValue = parseFloat(win)
+
+    if (betValue > 0) {
+      if (lastEdited === 'multiplier' && multiplierValue > 0) {
+        // Calculate win based on multiplier
+        const calculatedWin = (betValue * multiplierValue).toFixed(2)
+        setWin(calculatedWin)
+      } else if (lastEdited === 'win' && winValue > 0) {
+        // Calculate multiplier based on win
+        const calculatedMultiplier = (winValue / betValue).toFixed(2)
+        setMultiplier(calculatedMultiplier)
+      }
+    }
+  }, [bet, multiplier, win, lastEdited])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,7 +117,23 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
                 type="number"
                 step="0.01"
                 value={bet}
-                onChange={(e) => setBet(e.target.value)}
+                onChange={(e) => {
+                  setBet(e.target.value)
+                  // Trigger recalculation based on last edited field
+                  if (lastEdited === 'multiplier') {
+                    const multiplierValue = parseFloat(multiplier)
+                    const betValue = parseFloat(e.target.value)
+                    if (multiplierValue > 0 && betValue > 0) {
+                      setWin((betValue * multiplierValue).toFixed(2))
+                    }
+                  } else if (lastEdited === 'win') {
+                    const winValue = parseFloat(win)
+                    const betValue = parseFloat(e.target.value)
+                    if (winValue > 0 && betValue > 0) {
+                      setMultiplier((winValue / betValue).toFixed(2))
+                    }
+                  }
+                }}
                 className="bg-gray-800 border-gray-700 text-white mt-1"
                 placeholder="0.00"
                 required
@@ -112,7 +149,16 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
                 type="number"
                 step="0.01"
                 value={multiplier}
-                onChange={(e) => setMultiplier(e.target.value)}
+                onChange={(e) => {
+                  setMultiplier(e.target.value)
+                  setLastEdited('multiplier')
+                  const betValue = parseFloat(bet)
+                  const multiplierValue = parseFloat(e.target.value)
+                  if (betValue > 0 && multiplierValue > 0) {
+                    setWin((betValue * multiplierValue).toFixed(2))
+                    setStatus("Completed") // Auto-set to completed when multiplier is entered
+                  }
+                }}
                 className="bg-gray-800 border-gray-700 text-white mt-1"
                 placeholder="0"
               />
@@ -127,7 +173,16 @@ export function EditBonusModal({ isOpen, onClose, onEdit, bonus }: EditBonusModa
                 type="number"
                 step="0.01"
                 value={win}
-                onChange={(e) => setWin(e.target.value)}
+                onChange={(e) => {
+                  setWin(e.target.value)
+                  setLastEdited('win')
+                  const betValue = parseFloat(bet)
+                  const winValue = parseFloat(e.target.value)
+                  if (betValue > 0 && winValue > 0) {
+                    setMultiplier((winValue / betValue).toFixed(2))
+                    setStatus("Completed") // Auto-set to completed when win is entered
+                  }
+                }}
                 className="bg-gray-800 border-gray-700 text-white mt-1"
                 placeholder="0.00"
               />
