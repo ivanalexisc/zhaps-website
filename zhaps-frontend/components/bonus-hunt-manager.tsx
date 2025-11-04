@@ -420,7 +420,7 @@ export function BonusHuntManager() {
                 >
                   <td className="p-4">
                     <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-600 rounded text-black font-bold flex items-center justify-center text-sm">
-                      #{bonus.id}
+                      #{sortedBonuses.indexOf(bonus) + 1}
                     </div>
                   </td>
 
